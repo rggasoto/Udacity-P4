@@ -4,13 +4,37 @@ import glob
 import matplotlib.pyplot as plt
 
 
+def diagPanel(main,diag1,diag2,diag3,diag4,diag5,diag6,diag7,diag8,diag9,inp1):
+        # middle panel text example
+    # using cv2 for drawing text in diagnostic pipeline.
+    font = cv2.FONT_HERSHEY_COMPLEX
+    middlepanel = np.zeros((120, 1280, 3), dtype=np.uint8)
+    cv2.putText(middlepanel, 'Estimated lane curvature: {}'.format(inp1), (30, 60), font, 1, (255,0,0), 2)
+    #cv2.putText(middlepanel, 'Estimated Meters right of center: {}'.format(inp2), (30, 90), font, 1, (255,0,0), 2)
+
+
+    # assemble the screen example
+    diagScreen = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    diagScreen[0:720, 0:1280] = main
+    diagScreen[0:240, 1280:1600] = cv2.resize(diag1, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[0:240, 1600:1920] = cv2.resize(diag2, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[240:480, 1280:1600] = cv2.resize(diag3, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[240:480, 1600:1920] = cv2.resize(diag4, (320,240), interpolation=cv2.INTER_AREA)*4
+    diagScreen[600:1080, 1280:1920] = cv2.resize(diag7, (640,480), interpolation=cv2.INTER_AREA)*4
+    diagScreen[720:840, 0:1280] = middlepanel
+    diagScreen[840:1080, 0:320] = cv2.resize(diag5, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[840:1080, 320:640] = cv2.resize(diag6, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[840:1080, 640:960] = cv2.resize(diag9, (320,240), interpolation=cv2.INTER_AREA)
+    diagScreen[840:1080, 960:1280] = cv2.resize(diag8, (320,240), interpolation=cv2.INTER_AREA)
+    return diagScreen
+
 class imgUtils:
 
     def __init__(self):
         # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
         objp = np.zeros((6*9,3), np.float32)
         objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
-        self.debug = False
+        self.debug = True
 
         # Arrays to store object points and image points from all the images.
         objpoints = [] # 3d points in real world space
@@ -117,7 +141,8 @@ class imgUtils:
         binary_output =  np.zeros_like(absgraddir)
         binary_output[(absgraddir >= thresh[0]) & (absgraddir <= thresh[1])] = 1
         return binary_output
-    def sat_threshold(self,img,thresh=(120,255)):
+
+    def sat_threshold(self,img,thresh=(125,255)):
         hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
         s_channel = hls[:,:,2]
         l_channel = hls[:,:,1]
@@ -127,6 +152,7 @@ class imgUtils:
         s_binary[(s_channel >= s_thresh_min) & (s_channel <= s_thresh_max)] = 1
         return s_binary
     def getMaskedWarpedImage(self,undist):
+        
         # for image in glob.glob('test_images/*.jpg'):
 
             # dist = cv2.imread(image)
@@ -145,26 +171,36 @@ class imgUtils:
             undistyuv[:,:,0] = undistgray
             undistclean = undist
             undist = cv2.cvtColor(undistyuv,cv2.COLOR_YUV2BGR)
-
-            gradx = self.abs_sobel_thresh(undistgray, orient='x', sobel_kernel=ksize, thresh=(40, 130))
-            grady  = self.abs_sobel_thresh(undistgray, orient='y', sobel_kernel=ksize, thresh=(50, 100))
-            mag_binary = self.mag_thresh(undistgray, sobel_kernel=ksize, mag_thresh=(40, 900))
-            dir_binary = self.dir_threshold(undistgray,  sobel_kernel=21, thresh=(0.6, 1.4))
+            gradx = np.zeros((undistclean.shape[0],undistclean.shape[1]))
+            grady = np.zeros_like(gradx)
+            mag_binary = np.zeros_like(grady)
+            dir_binary = np.zeros_like(gradx)
+            s_thresh = np.zeros_like(gradx)
+            halfy = int(gradx.shape[0]/2)
+            gradx[halfy:,:] = self.abs_sobel_thresh(undistgray[halfy:,:], orient='x', sobel_kernel=ksize, thresh=(40, 130))
+            grady[halfy:,:]  = self.abs_sobel_thresh(undistgray[halfy:,:], orient='y', sobel_kernel=ksize, thresh=(50, 100))
+            mag_binary[halfy:,:] = self.mag_thresh(undistgray[halfy:,:], sobel_kernel=ksize, mag_thresh=(30, 900))
+            dir_binary[halfy:,:] = self.dir_threshold(undistgray[halfy:,:],  sobel_kernel=5, thresh=(0.7, 1.3))
             # kernel = np.ones((8,8),np.uint8)
             # dir_binary = cv2.morphologyEx(np.uint8(dir_binary), cv2.MORPH_OPEN, kernel)
             #print(gradx)
-            combined = np.zeros_like(dir_binary)
+            combined = np.zeros_like(gradx)
             combined[((gradx >= 1) & (grady >= 1)) | ((mag_binary >= 1) & (dir_binary >= 1))] = 1
-            s_thresh = self.sat_threshold(undistclean)
+            #combined[((gradx >= 1) & (grady >= 1)) | ((mag_binary >= 1))] = 1
+            new = np.zeros_like(dir_binary)
+            new[ ((mag_binary >= 1) & (dir_binary >= 1))] = 1
+            dir_binary = new
+            #combined[((gradx >= 1) & (grady >= 1))] = 1
+            s_thresh[halfy:,:] = self.sat_threshold(undistclean[halfy:,:])
             kernel = np.ones((10,10),np.uint8)
-            s_mask = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_OPEN, kernel)
-            s_unmasked = s_thresh
+            s_mask = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_OPEN, kernel)
+            s_unmasked = np.copy(s_thresh)
             s_thresh[s_mask > 0] = 0
-            s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_CLOSE, kernel)
-            kernel = np.ones((8,8),np.uint8)
-            s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_DILATE, kernel)
-            kernel = np.ones((4,4),np.uint8)
-            s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_ERODE, kernel)
+            s_thresh[halfy:,:] = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_CLOSE, kernel)
+            #kernel = np.ones((10,10),np.uint8)
+            #s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_DILATE, kernel)
+            #kernel = np.ones((5,5),np.uint8)
+            #s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_ERODE, kernel)
 
             combined[s_thresh >=1] = 1
 
@@ -181,11 +217,13 @@ class imgUtils:
 
             #undistwarped = cv2.line(undistwarped,wbottom_left,wbottom_right,thickness = 2,color = (255,0,0))
             #undistwarped = cv2.line(undistwarped,wtop_right,wbottom_right,thickness = 2,color = (255,0,0))
-            combinedWarped = self.perspectiveTransform(combined)
             kernel = np.ones((2,2),np.uint8)
-            combinedWarped = cv2.morphologyEx(np.uint8(combinedWarped), cv2.MORPH_OPEN, kernel)
-            kernel = np.ones((20,20),np.uint8)
-            combinedWarped = cv2.morphologyEx(np.uint8(combinedWarped), cv2.MORPH_CLOSE, kernel)
+            combined[halfy:,:] = cv2.morphologyEx(np.uint8(combined[halfy:,:]), cv2.MORPH_OPEN, kernel)
+            kernel = np.ones((5,5),np.uint8)
+            combined[halfy:,:] = cv2.morphologyEx(np.uint8(combined[halfy:,:]), cv2.MORPH_CLOSE, kernel)
+            combinedWarped = self.perspectiveTransform(combined)
+            #kernel = np.ones((20,20),np.uint8)
+            #combinedWarped = cv2.morphologyEx(np.uint8(combinedWarped), cv2.MORPH_CLOSE, kernel)
 
             if self.debug:
                 combinedWarped[combinedWarped>=1]=255
@@ -207,4 +245,4 @@ class imgUtils:
                 cv2.imshow('pipeline',img)
                 # cv2.waitKey(-1)
 
-            return np.dstack((s_thresh,combined,np.zeros_like(s_thresh)))*255, combinedWarped
+            return undistwarped, combinedWarped
