@@ -9,8 +9,8 @@ import glob
 cap = cv2.VideoCapture('project_video.mp4')
 i = 0
 
-fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-videoout = cv2.VideoWriter('output.avi',fourcc, 30.0,( 1280,720))
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+videoout = cv2.VideoWriter('output.mov',fourcc, 30.0,( 1280,720))
 utils = imgUtils()
 makeReport = True;
 # top_left = (631,427)
@@ -39,27 +39,27 @@ utils.setPerspectiveParams(poly,wpoly)
 class LineFit:
     def __init__(self):
         self.fit = None
-        self.n = 20
+        self.n = 10
         self.buffer = np.zeros((self.n,3))
         self.count = 0
         self.index = -1
-        #self.weights = [[10,1,2,3,4,5,6,7,8,9],
-        #   [9,10,1,2,3,4,5,6,7,8],
-        #   [8,9,10,1,2,3,4,5,6,7],
-        #   [7,8,9,10,1,2,3,4,5,6],
-        #   [6,7,8,9,10,1,2,3,4,5],
-        #   [5,6,7,8,9,10,1,2,3,4],
-        #   [4,5,6,7,8,9,10,1,2,3],
-        #   [3,4,5,6,7,8,9,10,1,2],
-        #   [2,3,4,5,6,7,8,9,10,1],
-        #   [1,2,3,4,5,6,7,8,9,10]]  
+        self.weights = [[10,1,2,3,4,5,6,7,8,9],
+          [9,10,1,2,3,4,5,6,7,8],
+          [8,9,10,1,2,3,4,5,6,7],
+          [7,8,9,10,1,2,3,4,5,6],
+          [6,7,8,9,10,1,2,3,4,5],
+          [5,6,7,8,9,10,1,2,3,4],
+          [4,5,6,7,8,9,10,1,2,3],
+          [3,4,5,6,7,8,9,10,1,2],
+          [2,3,4,5,6,7,8,9,10,1],
+          [1,2,3,4,5,6,7,8,9,10]]
         self.weights = np.ones((self.n,self.n))
         self.frameskip = 0;
         self.curve_r = -1
         self.frames_dropped = 0
     def reset(self):
         self.fit = None;
-        self.buffer = np.zeros((self.n,3))        
+        self.buffer = np.zeros((self.n,3))
         self.count = 0
         self.index = -1
         self.frames_dropped = 0
@@ -113,7 +113,7 @@ while cap.isOpened():
         nwindows = 8
         # Set height of windows
         window_height = np.int(binary_warped.shape[0]/nwindows)
-       
+
         # Current positions to be updated for each window
         leftx_current = leftx_base
         margin = 100
@@ -121,7 +121,7 @@ while cap.isOpened():
         minpix = 50
         # Create empty lists to receive left and right lane pixel indices
         left_lane_inds = []
-        
+
         # Step through the windows one by one
         for window in range(nwindows):
             # Identify window boundaries in x and y (and right and left)
@@ -129,7 +129,7 @@ while cap.isOpened():
             win_y_high = binary_warped.shape[0] - window*window_height
             win_xleft_low = leftx_current - margin
             win_xleft_high = leftx_current + margin
-           
+
             # Identify the nonzero pixels in x and y within the window
             good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
             # Append these indices to the lists
@@ -139,24 +139,26 @@ while cap.isOpened():
                 leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
           # Concatenate the arrays of indices
         left_lane_inds = np.concatenate(left_lane_inds)
-        
+
         # Extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
         lefty = nonzeroy[left_lane_inds]
-      
+
         # Fit a second order polynomial to each
         left_fit_t = np.polyfit(lefty, leftx, 2)
-        left.add(left_fit_t);   
+        left.add(left_fit_t);
+        left_fit = left.get()
         left_w.add(np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2))
-    else:      
+    else:
         margin = 100
-        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
-       
+        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
+
         # Again, extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
+        lefty = nonzeroy[left_lane_inds]
         # Fit a second order polynomial to each
         left_fit_t = np.polyfit(lefty, leftx, 2)
+
 
     if right.count == 0 :
         if(rightx_base is None):
@@ -166,7 +168,7 @@ while cap.isOpened():
         nwindows = 8
         # Set height of windows
         window_height = np.int(binary_warped.shape[0]/nwindows)
-       
+
         # Current positions to be updated for each window
         rightx_current = rightx_base
         # Set the width of the windows +/- margin
@@ -183,7 +185,7 @@ while cap.isOpened():
             win_y_high = binary_warped.shape[0] - window*window_height
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
-        
+
             # Identify the nonzero pixels in x and y within the window
             good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
             # Append these indices to the lists
@@ -201,10 +203,11 @@ while cap.isOpened():
         # Fit a second order polynomial to each
         right_fit_t = np.polyfit(righty, rightx, 2)
         right.add(right_fit_t);
+        right_fit = right.get()
         right_w.add(np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2))
-    else:        
+    else:
         margin = 100
-        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
+        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
 
         # Again, extract left and right line pixel positions
         rightx = nonzerox[right_lane_inds]
@@ -220,33 +223,42 @@ while cap.isOpened():
         r_fit_f = np.copy(right_fit_t)
         tolerance = avg_curve*0.200
         #Make sure lanes didn't change much from previous frame (20% tolerance)
-        if abs(left_curverad_t - avg_curve) > tolerance:
-            #left.frames_dropped+=1
-            #if did, check if can use other lane as a rough estimate
-            if abs(left_curverad_t - avg_curve) < (right_curverad_t - avg_curve) or (right_curverad_t - avg_curve)  >tolerance:
-                l_fit_f = None;
-            else:
-                #If it's a reasonable match, use right lane as estimate, with start point as previous average was
-                l_fit_f[0:2] = right_fit_t[0:2];
-                l_fit_f[2] = left.get()[2]
-    
-        #Same process for Right lane
-        if abs(right_curverad_t - right.curve_r) > tolerance:
-            if  abs(right_curverad_t - right.curve_r) < abs(left_curverad_t - avg_curve) or abs(left_curverad_t - avg_curve) >tolerance:
-                r_fit_f = None;
-            else:
-                r_fit_f[0:2] = left_fit_t[0:2];
-                r_fit_f[2] = right.get()[2]
+        # if abs(left_curverad_t - avg_curve) > tolerance:
+        #     #left.frames_dropped+=1
+        #     #if did, check if can use other lane as a rough estimate
+        #     if abs(left_curverad_t - avg_curve) < (right_curverad_t - avg_curve) or (right_curverad_t - avg_curve)  >tolerance:
+        #         l_fit_f = None;
+        #     else:
+        #         #If it's a reasonable match, use right lane as estimate, with start point as previous average was
+        #         l_fit_f[0:2] = right_fit_t[0:2];
+        #         l_fit_f[2] = left.get()[2]
+        #
+        # #Same process for Right lane
+        # if abs(right_curverad_t - right.curve_r) > tolerance:
+        #     if  abs(right_curverad_t - right.curve_r) < abs(left_curverad_t - avg_curve) or abs(left_curverad_t - avg_curve) >tolerance:
+        #         r_fit_f = None;
+        #     else:
+        #         r_fit_f[0:2] = left_fit_t[0:2];
+        #         r_fit_f[2] = right.get()[2]
 
-        #If frame was still not dropped, check if base moved from original estimate by a tolerance pixels            
-        if not (l_fit_f is None):
-            l_base = l_fit_f[0]*binary_warped.shape[0]**2 + l_fit_f[1]*binary_warped.shape[0] + l_fit_f[2]
-            if abs(leftx_base - l_base) > 10:
-                l_fit_f = None
-        if not (r_fit_f is None):
-            r_base = r_fit_f[0]*binary_warped.shape[0]**2 + r_fit_f[1]*binary_warped.shape[0] + r_fit_f[2]
-            if abs(rightx_base - r_base) > 10:
-                l_fit_f = None
+        #If frame was still not dropped, check if base moved from original estimate by a tolerance pixels
+
+        # if not (l_fit_f is None):
+
+        leftx_base =left_fit[0]*binary_warped.shape[0]**2 + left_fit[1]*binary_warped.shape[0] + left_fit[2]
+        rightx_base = right_fit[0]*binary_warped.shape[0]**2 + right_fit[1]*binary_warped.shape[0] + right_fit[2]
+        l_base = l_fit_f[0]*binary_warped.shape[0]**2 + l_fit_f[1]*binary_warped.shape[0] + l_fit_f[2]
+        ltip = l_fit_f[2]
+        if abs(leftx_base - l_base) > 30 or abs(ltip-left.get()[2]) > 30:
+            l_fit_f = None
+        # if not (r_fit_f is None):
+        r_base = r_fit_f[0]*binary_warped.shape[0]**2 + r_fit_f[1]*binary_warped.shape[0] + r_fit_f[2]
+        rtip = r_fit_f[2]
+        if abs(rightx_base - r_base) > 30 or abs(rtip - right.get()[2])>30:
+            r_fit_f = None
+        if abs((ltip + rtip) - (left_fit[2] + right_fit[2])) > 30 and not l_fit_f is None and not r_fit_f is None:
+            l_fit_f = None
+            r_fit_f = None
         #If frame was dropped (even if used other lane to estimate), increase frame drop
         if not np.array_equal(left_fit_t,l_fit_f):
             left_fit_t = l_fit_f;
@@ -260,7 +272,7 @@ while cap.isOpened():
             right.frames_dropped=0;
 
         #if there's something to add to the line
-        if not left_fit_t is None:            
+        if not left_fit_t is None:
             left.add(left_fit_t)
             left_w.add(np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2))
         if not right_fit_t is None:
@@ -270,7 +282,7 @@ while cap.isOpened():
 
     left_fit = left.get()
     right_fit = right.get()
-    
+
     y_eval = np.max(ploty)
     left.curve_r = ((1 + (2*left_fit[0]*y_eval + left_fit[1])**2)**1.5) / np.absolute(2*left_fit[0])
     right.curve_r = ((1 + (2*right_fit[0]*y_eval + right_fit[1])**2)**1.5) / np.absolute(2*right_fit[0])
@@ -287,17 +299,16 @@ while cap.isOpened():
     avg_curvature = (left_curverad + right_curverad)/2
     avg_curve = (left.curve_r + right.curve_r)/2
     print( left_curverad, right_curverad, avg_curvature,car_center)
-    
-    
+
+
     # Generate x and y values for plotting
     ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-    
+
 
     # Create an image to draw on and an image to show the selection window
     out_img = warped
-    cv2.imshow('result',utils.perspectiveTransform( out_img))
     window_img = np.zeros_like(out_img)
     # Color in left and right line pixels
     left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-10, ploty]))])
@@ -315,12 +326,12 @@ while cap.isOpened():
     cv2.fillPoly(window_img, np.int_([lane_pts]), (0,255,0 ))
     cv2.fillPoly(window_img, np.int_([left_line_pts]), (255,0, 0))
     cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,0, 255))
-    
+
     out = utils.perspectiveInverse(window_img)
 
     out_img = cv2.addWeighted(undist, 1, out, 0.3, 0)
-   
-    
+
+
     # Recast the x and y points into usable format for cv2.fillPoly()
     curv = avg_curvature
     if curv < 2500:
@@ -333,51 +344,19 @@ while cap.isOpened():
         cv2.putText(out_img, 'Car is {0:.2f}m to the right'.format(abs(car_center)), (10, 60), 0, 1, (255,255,255), 2)
     else:
         cv2.putText(out_img, 'Car is centered'.format(abs(car_center)), (10, 60), 0, 1, (255,255,255), 2)
-    
+
+    cv2.imshow('result', out_img)
     videoout.write(out_img)
-    if i > 130:
-        # Assume you now have a new warped binary image 
-        # from the next frame of video (also called "binary_warped")
-        # It's now much easier to find line pixels!
-        nonzero = binary_warped.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
-        margin = 100
-        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
-        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
-        # Create an image to draw on and an image to show the selection window
-        out_img = np.dstack((binary_warped, binary_warped, binary_warped))
-        window_img = np.zeros_like(out_img)
-        # Color in left and right line pixels
-        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [1, 0, 0]
-        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 1]
-        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, ploty])))])
-        left_line_pts = np.hstack((left_line_window1, left_line_window2))
-        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, ploty])))])
-        right_line_pts = np.hstack((right_line_window1, right_line_window2))
-
-        # Draw the lane onto the warped blank image
-        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,1, 0))
-        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,1, 0))
-        result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
-        plt.imshow(result)
-        plt.plot(left_fitx, ploty, color='yellow')
-        plt.plot(right_fitx, ploty, color='yellow')
-        plt.xlim(0, 1280)
-        plt.ylim(720, 0)
-        plt.show()
 
 
 
-    if(left.frames_dropped >= 10): 
+    if(left.frames_dropped >= 5):
         left.reset()
-        
-     
-    if ( right.frames_dropped >= 10):
+
+
+    if ( right.frames_dropped >= 5):
         right.reset()
-        
+
 
     #plt.pause(0.001)
     if cv2.waitKey(1) & 0xFF == ord('q'):

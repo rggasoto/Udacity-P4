@@ -22,7 +22,7 @@ The goals / steps of this project are the following:
 [fitted]: ./output_images/fitted_poly.png "Fitted polynomial to pixels detected"
 [warped]: ./output_images/perspectiveTransf.png "Perspective transform for birds eye view"
 [output]: ./output_images/markedOutput.png "Output"
-[video1]: ./output_images/output.avi "Video"
+[video1]: ./output_images/output.mov "Video"
 
 ###Camera Calibration
 
@@ -191,11 +191,11 @@ In order to warp the image, helper functions were made in `imgUtils` to set the 
         self.dst = dst
         self.src = src
         self.M = cv2.getPerspectiveTransform(src, dst)
-    
+
 	def perspectiveTransform(self,img):
         img_size = (img.shape[1], img.shape[0])
         return cv2.warpPerspective(img, self.M, img_size)
-    
+
 	def perspectiveInverse(self,img):
         img_size = (img.shape[1], img.shape[0])
         return cv2.warpPerspective(img, np.linalg.inv(self.M), img_size)
@@ -209,9 +209,9 @@ for the filter, the resulting warped image can be seen in the last image of figu
 The warping parameters are the mapping of 4 Source points to 4 destination points, which were done empirically using the test road images as parameter, which resulted in the following warping coordinates
 
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 580, 460      | 320, 0        | 
+| Source        | Destination   |
+|:-------------:|:-------------:|
+| 580, 460      | 320, 0        |
 | 206, 720      | 320, 720      |
 | 1100, 720     | 960, 720      |
 | 703, 460      | 960, 0        |
@@ -228,19 +228,18 @@ This is done in line 109 of `pipeline.py`.
 If a previous match already exists for the lane (individually for left and right lanes), then instead of sliding window, a region around the fitted line is selected for matching the next polynomial
 ```python
 	margin = 100
-    left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
-       
+    left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
+
     # Again, extract left and right line pixel positions
     leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds] 
+    lefty = nonzeroy[left_lane_inds]
     # Fit a second order polynomial to each
     left_fit_t = np.polyfit(lefty, leftx, 2)
 ```
 
 once a polynomial is fitted into the detected lane, some sanity checks are performed.
-First, due to the nature of the problem, it is expected that the curvature radius won't change much from one frame to the next. A tolerance of 10% is given before the lane detection is dropped.
-If one of the measures contains a valid curvature within the tolerance level, it is used to overcome the faulty detectio on the other lane. this however, is not considered as a valid fitting for persistency of measurement.
-Then, the base is checked for variation, if it didn't change much, the fitted line can is accepted, otherwise it is dropped.
+First, due to the nature of the problem, it is expected that the base of the lane won't change much from previous frame. Therefore, if the change exceeds a given threshold, the frame will be dropped.
+If both frame bases are accepted, the next check is whether the top of the lane has a similar width as the base (which means the lane will be parallel). If no lane was dropped, and the difference between the base and top exceeds a threshold, then both lane readings are dropped.
 
 Once the lane receives an accepted measurement, its dropped frames counter is reset. If the counter reaches the limit of dropped frames, the entire reading buffer is reset and a new search for a lane needs to be performed.
 
@@ -249,13 +248,13 @@ Once the lane receives an accepted measurement, its dropped frames counter is re
 ####5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
 the radius of curvature of the lanes is computed using the formula provided in lecture, in with the following code:
-```python 
+```python
 left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
 right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
 avg_curvature = (left_curverad + right_curverad)/2
 ```
 
-Considering that the camera is centered with the vehicle, the car location with respect to center is done in a similar fashion, by computing the base of the polynomial, and comparing against the center of the picture: 
+Considering that the camera is centered with the vehicle, the car location with respect to center is done in a similar fashion, by computing the base of the polynomial, and comparing against the center of the picture:
 ```python
 l_base = left_fit[0]*binary_warped.shape[0]**2 + left_fit[1]*binary_warped.shape[0] + left_fit[2]
 r_base = right_fit[0]*binary_warped.shape[0]**2 + right_fit[1]*binary_warped.shape[0] + right_fit[2]
