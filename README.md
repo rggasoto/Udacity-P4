@@ -1,7 +1,3 @@
-##Writeup Template
-###You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
 
 **Advanced Lane Finding Project**
 
@@ -23,6 +19,7 @@ The goals / steps of this project are the following:
 [pipeline1]: ./output_images/binary_1.png "Binary pipeline 1"
 [pipeline2]: ./output_images/binary_S_1.png "Pipeline add Saturation filter 1"
 [pipeline1]: ./output_images/binary_warped_1.png "Pipeline Morphology convolution to remove noise and warping to top view"
+[fitted]: ./output_images/fitted_poly.png "Fitted polynomial to pixels detected"
 [warped]: ./output_images/perspectiveTransf.png "Perspective transform for birds eye view"
 [output]: ./output_images/marked_output.png "Output"
 [video1]: ./project_video.mp4 "Video"
@@ -59,17 +56,17 @@ After the camera is calibrated, the remainder of the pipeline is done over an im
 ![alt text][image2]
 ####2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 The pipeline for lane finding contains the following steps:
--Equalize Grayscale histogram
--Apply gradient filter with threshold over equalized image on axis X and Y
-	-Merge X and Y filters together where both are positive
--Apply directional gradient and magnitude filter over equalized image
-	-Merge Directional and Magnitude filters where both are positive
--Apply saturation Threshold over image
-	-Remove large image blobs by applying a morphological OPEN and mask out the result.
-	-Close gaps with morphological Close operation
--Merge Saturation, magnitude and gradient filters keeping all selected pixels.
--Filter small remaining noise with morphological Close
--Warp image to bird's view perspective of road.
+*Equalize Grayscale histogram
+*Apply gradient filter with threshold over equalized image on axis X and Y
+	*Merge X and Y filters together where both are positive
+*Apply directional gradient and magnitude filter over equalized image
+	*Merge Directional and Magnitude filters where both are positive
+*Apply saturation Threshold over image
+	*Remove large image blobs by applying a morphological OPEN and mask out the result.
+	*Close gaps with morphological Close operation
+*Merge Saturation, magnitude and gradient filters keeping all selected pixels.
+*Filter small remaining noise with morphological Close
+*Warp image to bird's view perspective of road.
 
 #####Gradient Filter
 The gradient Filter is performed in function `abs_sobel_thresh`, defined in class imgUtils as follows:
@@ -101,7 +98,8 @@ The gradient Filter is performed in function `abs_sobel_thresh`, defined in clas
 ```
 the same function is used to apply x and y directions. later, the result is combined with the code `grad[((gradx >= 1) & (grady >= 1))]=1`
 The result is seen in the first line of the next image, where the first image is in X direction, the second is in Y direciton, and the purple-yellow image is the resulting combination, applied to test image 5.
-####Magnitude and Directional Gradient
+
+#####Magnitude and Directional Gradient
 The next step in the pipeline is compute the magnitude of change and the directional threshold. This is done using the `imgUtils` functions `mag_thresh` and `dir_threshold`, defined as follows:
 
 ``` python
@@ -179,6 +177,7 @@ as can be seen in the first image of the second row, there is significant amount
 	s_thresh[halfy:,:] = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_CLOSE, kernel)
 ```
 ![alt text][pipeline2]
+
 The resulting filter is merged with the previous filter, and then another morphological operation is done to elminate small noise from the image before warping.
 
 
@@ -203,6 +202,8 @@ for the filter, the resulting warped image can be seen in the last image of figu
 
 ![alt text][pipeline3]
 
+
+
 The warping parameters are the mapping of 4 Source points to 4 destination points, which were done empirically using the test road images as parameter, which resulted in the following warping coordinates
 
 
@@ -213,6 +214,8 @@ The warping parameters are the mapping of 4 Source points to 4 destination point
 | 1100, 720     | 960, 720      |
 | 703, 460      | 960, 0        |
 
+Another example can be seen here:
+![alt text][warped]
 
 ####4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
@@ -238,7 +241,8 @@ The file `pipeline.py` contains the logic that gets the warped binary image from
 	Then, the base is checked for variation, if it didn't change much, the fitted line can is accepted, otherwise it is dropped.
 
 	Once the lane receives an accepted measurement, its dropped frames counter is reset. If the counter reaches the limit of dropped frames, the entire reading buffer is reset and a new search for a lane needs to be performed.
-![alt text][image5]
+
+	![alt text][fitted]
 
 ####5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
@@ -259,7 +263,7 @@ car_center = (binary_warped.shape[1]/2 - (l_base + r_base)/2)*xm_per_pix
 ####6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
 
-![alt text][image6]
+![alt text][output]
 
 ---
 
