@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import glob
 import matplotlib.pyplot as plt
-
+import matplotlib.image as mpimg
 
 def diagPanel(main,diag1,diag2,diag3,diag4,diag5,diag6,diag7,diag8,diag9,inp1):
         # middle panel text example
@@ -64,7 +64,8 @@ class imgUtils:
                 print(fname)
 
         self.ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
-
+       
+        #input()
     def undistort(self,img):
         und = cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
         return und
@@ -75,6 +76,9 @@ class imgUtils:
     def perspectiveTransform(self,img):
         img_size = (img.shape[1], img.shape[0])
         return cv2.warpPerspective(img, self.M, img_size)
+    def perspectiveInverse(self,img):
+        img_size = (img.shape[1], img.shape[0])
+        return cv2.warpPerspective(img, np.linalg.inv(self.M), img_size)
 
     def abs_sobel_thresh(self,img, orient='x', sobel_kernel=3, thresh=(0,255)):
 
@@ -151,25 +155,20 @@ class imgUtils:
         s_binary = np.zeros_like(s_channel)
         s_binary[(s_channel >= s_thresh_min) & (s_channel <= s_thresh_max)] = 1
         return s_binary
+
+
     def getMaskedWarpedImage(self,undist):
-        
-        # for image in glob.glob('test_images/*.jpg'):
-
-            # dist = cv2.imread(image)
-
-            # if i < 510:
-            #     continue
-            # if i > 650:
-            #     if i < 950:
-            #         continue
-
+            
             ksize = 3
             undistyuv = cv2.cvtColor(undist,cv2.COLOR_BGR2YUV)
             undistgray = undistyuv[:,:,0]
             clahe = cv2.createCLAHE(clipLimit=1.8, tileGridSize=(3,3))
+            #Normalize image histogram on Grayscale channel
             undistgray = clahe.apply(undistgray)
+            
             undistyuv[:,:,0] = undistgray
             undistclean = undist
+
             undist = cv2.cvtColor(undistyuv,cv2.COLOR_YUV2BGR)
             gradx = np.zeros((undistclean.shape[0],undistclean.shape[1]))
             grady = np.zeros_like(gradx)
@@ -177,72 +176,117 @@ class imgUtils:
             dir_binary = np.zeros_like(gradx)
             s_thresh = np.zeros_like(gradx)
             halfy = int(gradx.shape[0]/2)
+            #Generate  filters for Gradient, magnitude and direction thresholds (apply only in half image as above horizon is not relevant
             gradx[halfy:,:] = self.abs_sobel_thresh(undistgray[halfy:,:], orient='x', sobel_kernel=ksize, thresh=(40, 130))
             grady[halfy:,:]  = self.abs_sobel_thresh(undistgray[halfy:,:], orient='y', sobel_kernel=ksize, thresh=(50, 100))
             mag_binary[halfy:,:] = self.mag_thresh(undistgray[halfy:,:], sobel_kernel=ksize, mag_thresh=(30, 900))
             dir_binary[halfy:,:] = self.dir_threshold(undistgray[halfy:,:],  sobel_kernel=5, thresh=(0.7, 1.3))
-            # kernel = np.ones((8,8),np.uint8)
-            # dir_binary = cv2.morphologyEx(np.uint8(dir_binary), cv2.MORPH_OPEN, kernel)
-            #print(gradx)
+            # placeholder for compbined filters
             combined = np.zeros_like(gradx)
             combined[((gradx >= 1) & (grady >= 1)) | ((mag_binary >= 1) & (dir_binary >= 1))] = 1
-            #combined[((gradx >= 1) & (grady >= 1)) | ((mag_binary >= 1))] = 1
-            new = np.zeros_like(dir_binary)
-            new[ ((mag_binary >= 1) & (dir_binary >= 1))] = 1
-            dir_binary = new
-            #combined[((gradx >= 1) & (grady >= 1))] = 1
+            
+
+            
+            #new = np.zeros_like(dir_binary)
+            #new[ ((mag_binary >= 1) & (dir_binary >= 1))] = 1
+            #dir_binary = new
+            
+            # Color Threshold
             s_thresh[halfy:,:] = self.sat_threshold(undistclean[halfy:,:])
-            kernel = np.ones((10,10),np.uint8)
-            s_mask = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_OPEN, kernel)
+            kernel = np.ones((13,13),np.uint8)
+            s_mask = cv2.morphologyEx(np.uint8(s_thresh[:,:]), cv2.MORPH_CLOSE, kernel)            
+            s_mask = cv2.morphologyEx(np.uint8(s_mask), cv2.MORPH_OPEN, kernel)
+            # Mask out large blobs
             s_unmasked = np.copy(s_thresh)
             s_thresh[s_mask > 0] = 0
+            s_open = np.copy(s_thresh)
             s_thresh[halfy:,:] = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_CLOSE, kernel)
             #kernel = np.ones((10,10),np.uint8)
             #s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_DILATE, kernel)
             #kernel = np.ones((5,5),np.uint8)
             #s_thresh = cv2.morphologyEx(np.uint8(s_thresh), cv2.MORPH_ERODE, kernel)
-
+            
             combined[s_thresh >=1] = 1
+            new_combined = np.copy(combined)
 
+            #undistwarped = self.perspectiveTransform(undist)
 
-            undistwarped = self.perspectiveTransform(undist)
-            #undist = cv2.line(undist,top_left,top_right,thickness = 2,color = (255,0,0))
-            #undist = cv2.line(undist,top_left,bottom_left,thickness = 2,color = (255,0,0))
-
-            #undist = cv2.line(undist,bottom_left,bottom_right,thickness = 2,color = (255,0,0))
-            #undist = cv2.line(undist,top_right,bottom_right,thickness = 2,color = (255,0,0))
-
-            #undistwarped = cv2.line(undistwarped,wtop_left,wtop_right,thickness = 2,color = (255,0,0))
-            #undistwarped = cv2.line(undistwarped,wtop_left,wbottom_left,thickness = 2,color = (255,0,0))
-
-            #undistwarped = cv2.line(undistwarped,wbottom_left,wbottom_right,thickness = 2,color = (255,0,0))
-            #undistwarped = cv2.line(undistwarped,wtop_right,wbottom_right,thickness = 2,color = (255,0,0))
+            # filter out small noise
             kernel = np.ones((2,2),np.uint8)
             combined[halfy:,:] = cv2.morphologyEx(np.uint8(combined[halfy:,:]), cv2.MORPH_OPEN, kernel)
+            # fill in gaps
             kernel = np.ones((5,5),np.uint8)
             combined[halfy:,:] = cv2.morphologyEx(np.uint8(combined[halfy:,:]), cv2.MORPH_CLOSE, kernel)
             combinedWarped = self.perspectiveTransform(combined)
+            
             #kernel = np.ones((20,20),np.uint8)
             #combinedWarped = cv2.morphologyEx(np.uint8(combinedWarped), cv2.MORPH_CLOSE, kernel)
+            #plt.figure(1)
+            #plt.subplot(2,3,1)
+            #plt.imshow(gradx, cmap = 'gray')
+            #plt.subplot(2,3,2)
+            #plt.imshow(grady, cmap = 'gray')
+            #plt.subplot(2,3,3)
+            #grad = np.zeros_like(gradx)
+            #grad[((gradx >= 1) & (grady >= 1))]=1
+            #plt.imshow(grad)
+            #plt.subplot(2,3,4)
+            #plt.imshow(mag_binary, cmap = 'gray')
+            #plt.subplot(2,3,5)
+            #plt.imshow(dir_binary, cmap = 'gray')
+            #plt.subplot(2,3,6)
+            #dir = np.zeros_like(gradx)
+            #dir[((mag_binary >= 1) & (dir_binary >= 1))]=1
+            #plt.imshow(dir)
+            
 
-            if self.debug:
-                combinedWarped[combinedWarped>=1]=255
-                combined[combined >=1] = 255
-                gradx[gradx > 0] = 255
-                grady[grady > 0] = 255
-                mag_binary[mag_binary>0] = 255
-                dir_binary[dir_binary>0] = 255
-                s_thresh[s_thresh>0] = 255
-                s_unmasked[s_unmasked>0] = 255
-                img = diagPanel(undist,cv2.cvtColor(np.uint8(gradx),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(grady),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(mag_binary),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(dir_binary),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(combined),cv2.COLOR_GRAY2BGR),
-                                       undistwarped,cv2.cvtColor(np.uint8(combinedWarped),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(s_thresh),cv2.COLOR_GRAY2BGR),
-                                       cv2.cvtColor(np.uint8(s_unmasked),cv2.COLOR_GRAY2BGR),0)
-                cv2.imshow('pipeline',img)
+            #plt.figure(2)
+            #color_binary = np.dstack(( np.zeros_like(dir), dir, grad))
+            #plt.subplot(2,3,1)
+            #plt.imshow(grad,cmap = 'gray')
+            #plt.subplot(2,3,2)
+            #plt.imshow(dir,cmap = 'gray')
+            #plt.subplot(2,3,3)
+            #plt.imshow(color_binary)
+
+            #plt.subplot(2,3,4)
+            #plt.imshow(s_unmasked,cmap='gray')
+            #plt.subplot(2,3,5)
+            #plt.imshow(s_open,cmap='gray')
+            #plt.subplot(2,3,6)
+            #plt.imshow(s_thresh)
+            
+
+            #plt.figure(3)
+            #color_binary = np.dstack(( s_thresh, dir, grad))
+            #plt.subplot(2,2,1)
+            #plt.imshow(color_binary)
+            #plt.subplot(2,2,2)
+            #plt.imshow(new_combined,cmap = 'gray')
+            #plt.subplot(2,2,3)
+            #plt.imshow(combined,cmap = 'gray')
+            #plt.subplot(2,2,4)
+            #plt.imshow(combinedWarped,cmap = 'gray')
+            
+            #plt.show()
+            #if self.debug:
+            #    combinedWarped[combinedWarped>=1]=255
+            #    combined[combined >=1] = 255
+            #    gradx[gradx > 0] = 255
+            #    grady[grady > 0] = 255
+            #    mag_binary[mag_binary>0] = 255
+            #    dir_binary[dir_binary>0] = 255
+            #    s_thresh[s_thresh>0] = 255
+            #    s_unmasked[s_unmasked>0] = 255
+            #    img = diagPanel(undist,cv2.cvtColor(np.uint8(gradx),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(grady),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(mag_binary),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(dir_binary),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(combined),cv2.COLOR_GRAY2BGR),
+            #                           undistwarped,cv2.cvtColor(np.uint8(combinedWarped),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(s_thresh),cv2.COLOR_GRAY2BGR),
+            #                           cv2.cvtColor(np.uint8(s_unmasked),cv2.COLOR_GRAY2BGR),0)
+            #    cv2.imshow('pipeline',img)
                 # cv2.waitKey(-1)
 
-            return undistwarped, combinedWarped
+            return undist, combinedWarped
