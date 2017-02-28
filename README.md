@@ -18,10 +18,10 @@ The goals / steps of this project are the following:
 [image2]: ./output_images/undist_1.png "Undistorted"
 [pipeline1]: ./output_images/binary_1.png "Binary pipeline 1"
 [pipeline2]: ./output_images/binary_S_1.png "Pipeline add Saturation filter 1"
-[pipeline1]: ./output_images/binary_warped_1.png "Pipeline Morphology convolution to remove noise and warping to top view"
+[pipeline3]: ./output_images/binary_warped_1.png "Pipeline Morphology convolution to remove noise and warping to top view"
 [fitted]: ./output_images/fitted_poly.png "Fitted polynomial to pixels detected"
 [warped]: ./output_images/perspectiveTransf.png "Perspective transform for birds eye view"
-[output]: ./output_images/marked_output.png "Output"
+[output]: ./output_images/markedoutput.png "Output"
 [video1]: ./project_video.mp4 "Video"
 
 ###Camera Calibration
@@ -56,17 +56,17 @@ After the camera is calibrated, the remainder of the pipeline is done over an im
 ![alt text][image2]
 ####2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 The pipeline for lane finding contains the following steps:
-*Equalize Grayscale histogram
-*Apply gradient filter with threshold over equalized image on axis X and Y
-	*Merge X and Y filters together where both are positive
-*Apply directional gradient and magnitude filter over equalized image
-	*Merge Directional and Magnitude filters where both are positive
-*Apply saturation Threshold over image
-	*Remove large image blobs by applying a morphological OPEN and mask out the result.
-	*Close gaps with morphological Close operation
-*Merge Saturation, magnitude and gradient filters keeping all selected pixels.
-*Filter small remaining noise with morphological Close
-*Warp image to bird's view perspective of road.
+* Equalize Grayscale histogram
+* Apply gradient filter with threshold over equalized image on axis X and Y
+	* Merge X and Y filters together where both are positive
+* Apply directional gradient and magnitude filter over equalized image
+	* Merge Directional and Magnitude filters where both are positive
+* Apply saturation Threshold over image
+	* Remove large image blobs by applying a morphological OPEN and mask out the result.
+	* Close gaps with morphological Close operation
+* Merge Saturation, magnitude and gradient filters keeping all selected pixels.
+* Filter small remaining noise with morphological Close
+* Warp image to bird's view perspective of road.
 
 #####Gradient Filter
 The gradient Filter is performed in function `abs_sobel_thresh`, defined in class imgUtils as follows:
@@ -146,9 +146,10 @@ def mag_thresh(self,img, sobel_kernel=3, mag_thresh=(0, 255)):
         return binary_output
 ```
 The result is seen in the second row of the next image, where the last column is the resulting combination of both finters done with the code `dir[((mag_binary >= 1) & (dir_binary >= 1))]=1`
+
 ![alt text][pipeline1]
 
-The results for gradient and magnitude filters are then merged together (first row of image 4).
+The results for gradient and magnitude filters are then merged together (first row of image).
 
 #####Saturation Filter
 In order to improve robustness, an additional filter of Saturation threshold is done over the image, as defined in function `sat_threshold` of class `imgUtils`:
@@ -176,6 +177,7 @@ as can be seen in the first image of the second row, there is significant amount
 	s_thresh[s_mask > 0] = 0            
 	s_thresh[halfy:,:] = cv2.morphologyEx(np.uint8(s_thresh[halfy:,:]), cv2.MORPH_CLOSE, kernel)
 ```
+
 ![alt text][pipeline2]
 
 The resulting filter is merged with the previous filter, and then another morphological operation is done to elminate small noise from the image before warping.
@@ -221,28 +223,28 @@ Another example can be seen here:
 
 The file `pipeline.py` contains the logic that gets the warped binary image from imgUtils and identify where the lanes are. In order to help with the process, a class `LineFit` was created, that stores information from the line, and perform actions such as obtaining a weighted average of the last valid measurements.
 #####Line detection
-	Whenever it is the first time it's detecting a lane, the code must first know where to look for one. In order to do it, a histogram is taken, and the max peak for each side of the image is selected as starting search point for the lane, which is then conducted using a sliding window algorithm (if measures in the window where the center of mass is, and move the window center to that position).
-	This is done in line 109 of `pipeline.py`.
-	If a previous match already exists for the lane (individually for left and right lanes), then instead of sliding window, a region around the fitted line is selected for matching the next polynomial
-	```python
-	 margin = 100
-        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
+Whenever it is the first time it's detecting a lane, the code must first know where to look for one. In order to do it, a histogram is taken, and the max peak for each side of the image is selected as starting search point for the lane, which is then conducted using a sliding window algorithm (if measures in the window where the center of mass is, and move the window center to that position).
+This is done in line 109 of `pipeline.py`.
+If a previous match already exists for the lane (individually for left and right lanes), then instead of sliding window, a region around the fitted line is selected for matching the next polynomial
+```python
+	margin = 100
+    left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
        
-        # Again, extract left and right line pixel positions
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds] 
-        # Fit a second order polynomial to each
-        left_fit_t = np.polyfit(lefty, leftx, 2)
-	```
+    # Again, extract left and right line pixel positions
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds] 
+    # Fit a second order polynomial to each
+    left_fit_t = np.polyfit(lefty, leftx, 2)
+```
 
-	once a polynomial is fitted into the detected lane, some sanity checks are performed.
-	First, due to the nature of the problem, it is expected that the curvature radius won't change much from one frame to the next. A tolerance of 10% is given before the lane detection is dropped.
-	If one of the measures contains a valid curvature within the tolerance level, it is used to overcome the faulty detectio on the other lane. this however, is not considered as a valid fitting for persistency of measurement.
-	Then, the base is checked for variation, if it didn't change much, the fitted line can is accepted, otherwise it is dropped.
+once a polynomial is fitted into the detected lane, some sanity checks are performed.
+First, due to the nature of the problem, it is expected that the curvature radius won't change much from one frame to the next. A tolerance of 10% is given before the lane detection is dropped.
+If one of the measures contains a valid curvature within the tolerance level, it is used to overcome the faulty detectio on the other lane. this however, is not considered as a valid fitting for persistency of measurement.
+Then, the base is checked for variation, if it didn't change much, the fitted line can is accepted, otherwise it is dropped.
 
-	Once the lane receives an accepted measurement, its dropped frames counter is reset. If the counter reaches the limit of dropped frames, the entire reading buffer is reset and a new search for a lane needs to be performed.
+Once the lane receives an accepted measurement, its dropped frames counter is reset. If the counter reaches the limit of dropped frames, the entire reading buffer is reset and a new search for a lane needs to be performed.
 
-	![alt text][fitted]
+![alt text][fitted]
 
 ####5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
