@@ -19,7 +19,7 @@ The goals / steps of this project are the following:
 [//]: # (Image References)
 
 [image1]: ./output_images/camera_cal.png "Undistorted"
-[image1]: ./output_images/undist_1.png "Undistorted"
+[image2]: ./output_images/undist_1.png "Undistorted"
 [pipeline1]: ./output_images/binary_1.png "Binary pipeline 1"
 [pipeline2]: ./output_images/binary_S_1.png "Pipeline add Saturation filter 1"
 [pipeline1]: ./output_images/binary_warped_1.png "Pipeline Morphology convolution to remove noise and warping to top view"
@@ -182,7 +182,6 @@ as can be seen in the first image of the second row, there is significant amount
 The resulting filter is merged with the previous filter, and then another morphological operation is done to elminate small noise from the image before warping.
 
 
-
 ####3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
 In order to warp the image, helper functions were made in `imgUtils` to set the warping parameters, get perspective distorted and the reverse operation:
@@ -201,6 +200,7 @@ In order to warp the image, helper functions were made in `imgUtils` to set the 
         return cv2.warpPerspective(img, np.linalg.inv(self.M), img_size)
 ```
 for the filter, the resulting warped image can be seen in the last image of figure 5
+
 ![alt text][pipeline3]
 
 The warping parameters are the mapping of 4 Source points to 4 destination points, which were done empirically using the test road images as parameter, which resulted in the following warping coordinates
