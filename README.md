@@ -21,7 +21,7 @@ The goals / steps of this project are the following:
 [pipeline3]: ./output_images/binary_warped_1.png "Pipeline Morphology convolution to remove noise and warping to top view"
 [fitted]: ./output_images/fitted_poly.png "Fitted polynomial to pixels detected"
 [warped]: ./output_images/perspectiveTransf.png "Perspective transform for birds eye view"
-[output]: ./output_images/markedoutput.png "Output"
+[output]: ./output_images/markedOutput.png "Output"
 [video1]: ./project_video.mp4 "Video"
 
 ###Camera Calibration
