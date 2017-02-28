@@ -22,7 +22,7 @@ The goals / steps of this project are the following:
 [fitted]: ./output_images/fitted_poly.png "Fitted polynomial to pixels detected"
 [warped]: ./output_images/perspectiveTransf.png "Perspective transform for birds eye view"
 [output]: ./output_images/markedOutput.png "Output"
-[video1]: ./project_video.mp4 "Video"
+[video1]: ./output_images/output.avi "Video"
 
 ###Camera Calibration
 
@@ -273,7 +273,7 @@ car_center = (binary_warped.shape[1]/2 - (l_base + r_base)/2)*xm_per_pix
 
 ####1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](.output_images/output.avi)
+![alt text][video1]
 
 ---
 
